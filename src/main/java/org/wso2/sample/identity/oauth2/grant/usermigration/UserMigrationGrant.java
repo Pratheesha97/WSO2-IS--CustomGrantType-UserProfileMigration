@@ -23,13 +23,19 @@ import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.context.CarbonContext;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
 import org.wso2.carbon.identity.oauth2.ResponseHeader;
-import org.wso2.carbon.identity.oauth2.dto.OAuth2AccessTokenReqDTO;
 import org.wso2.carbon.identity.oauth2.model.RequestParameter;
 import org.wso2.carbon.identity.oauth2.token.OAuthTokenReqMessageContext;
 import org.wso2.carbon.identity.oauth2.token.handlers.grant.PasswordGrantHandler;
 import org.wso2.carbon.identity.oauth2.util.OAuth2Util;
 import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
+
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 /**
  * New grant type for Identity Server that performs Runtime User Migration
@@ -41,24 +47,17 @@ public class UserMigrationGrant extends PasswordGrantHandler {
     public static final String USERNAME_PARAM_MIGRATION_GRANT = "username";
     public static final String PASSWORD_PARAM_MIGRATION_GRANT = "password";
 
-    public static final String DEFAULT_PROFILE = "default";
-
-    private static final String USERNAME_CLAIM_URI = "http://wso2.org/claims/username";
-
-
     @Override
     public boolean validateGrant(OAuthTokenReqMessageContext oAuthTokenReqMessageContext) throws IdentityOAuth2Exception {
 
         log.info("User Migration Grant handler is hit");
 
-        String username = null;
         String usernameParam = null;
         String passwordParam = null;
 
         // extract request parameters
         RequestParameter[] parameters = oAuthTokenReqMessageContext.getOauth2AccessTokenReqDTO().getRequestParameters();
 
-        // fetch username and password
         for (RequestParameter parameter : parameters) {
             if (USERNAME_PARAM_MIGRATION_GRANT.equals(parameter.getKey())) {
                 if (parameter.getValue() != null && parameter.getValue().length > 0) {
@@ -73,46 +72,62 @@ public class UserMigrationGrant extends PasswordGrantHandler {
         }
 
         if (usernameParam != null && passwordParam != null) {
-            OAuth2AccessTokenReqDTO oAuth2AccessTokenReqDTO = oAuthTokenReqMessageContext.getOauth2AccessTokenReqDTO();
-            String tenantDomain = oAuth2AccessTokenReqDTO.getTenantDomain();
 
             try {
                 UserStoreManager userStoreManager = (UserStoreManager)
                         CarbonContext.getThreadLocalCarbonContext().getUserRealm().getUserStoreManager();
 
-                String[] userList = userStoreManager.getUserList(USERNAME_CLAIM_URI, usernameParam,
-                        DEFAULT_PROFILE);
+                String tenantAwareUserName = MultitenantUtils.getTenantAwareUsername(usernameParam);
 
-                if (userList == null || userList.length == 0) {
-                    String errorMessage = "No user found with the provided " + USERNAME_CLAIM_URI + ": " + usernameParam;
-                    if (log.isDebugEnabled()) {
-                        log.debug(errorMessage);
-                    }
-                } else if (userList.length == 1) {
-                    username = userList[0];
-                    String tenantAwareUserName = MultitenantUtils.getTenantAwareUsername(username);
-                    username = tenantAwareUserName + "@" + tenantDomain;
-                    if (log.isDebugEnabled()) {
-                        log.debug("Found single user: " + username + " with the provided username: " + usernameParam);
-                    }
+                boolean authorized = userStoreManager.authenticate(tenantAwareUserName, passwordParam);
 
-                    boolean authorized = userStoreManager.authenticate(tenantAwareUserName, passwordParam);
-                    if (authorized) {
-                        oAuthTokenReqMessageContext.setAuthorizedUser(OAuth2Util.getUserFromUserName(username));
-                        oAuthTokenReqMessageContext.setScope(oAuthTokenReqMessageContext.getOauth2AccessTokenReqDTO().getScope());
-                        return true;
+                //checks if the user can be authenticated locally. if not, migrates the user.
+                if (authorized) {
+                    oAuthTokenReqMessageContext.setAuthorizedUser(OAuth2Util.getUserFromUserName(usernameParam));
+                    oAuthTokenReqMessageContext.setScope(oAuthTokenReqMessageContext.getOauth2AccessTokenReqDTO().getScope());
+                    return true;
+                } else {
+                    //Call the custom API and retrieve the response (to be completed).
+
+                    if (true) {
+
+                        //If the user exists, migrate user attributes and claims to WSO2 Identity Server.
+                        String apiUrl = "https://localhost:9443/scim2/Users";
+                        String adminUsername = "admin";
+                        String adminPassword = "admin";
+
+                        try {
+                            URL url = new URL(apiUrl);
+                            URLConnection urlCon = url.openConnection();
+                            HttpURLConnection connection = (HttpURLConnection) urlCon;
+                            connection.setRequestMethod("POST");
+                            connection.setDoOutput(true);
+
+                            byte[] data = "{ \"schemas\": [], \"name\": { \"givenName\": \"Kim\", \"familyName\": \"Berry\" }, \"userName\": \"kim\", \"password\": \"abc123\", \"emails\": [ { \"type\": \"home\", \"value\": \"kim@gmail.com\", \"primary\": true }, { \"type\": \"work\", \"value\": \"kim@wso2.com\" } ], \"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User\": { \"employeeNumber\": \"1234A\", \"manager\": { \"value\": \"Taylor\" } }}".getBytes(StandardCharsets.UTF_8);
+                            int length = data.length;
+
+                            connection.setFixedLengthStreamingMode(length);
+                            connection.setRequestProperty("Accept", "application/scim+json; charset=UTF-8");
+                            connection.setRequestProperty("Content-Type", "application/scim+json; charset=UTF-8");
+                            connection.setRequestProperty("Authorization", "Basic " + Base64.getEncoder().encodeToString((adminUsername + ":" + adminPassword).getBytes()));
+
+                            connection.connect();
+                            try (OutputStream stream = urlCon.getOutputStream()) {
+                                stream.write(data);
+                            }
+                            System.out.println(connection.getResponseCode() + " " + connection.getResponseMessage());
+                            connection.disconnect();
+                        } catch (Exception e) {
+                            log.error("An error occurred when migrating user attributes and claims");
+                        }
+
                     } else {
                         if (log.isDebugEnabled()) {
-                            log.debug("User " + username + " is not authorized");
+                            log.debug("User " + usernameParam + " is not authorized");
                         }
                     }
-                } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("User not found with the provided username: " + usernameParam);
-                    }
+
                 }
-
-
             } catch (org.wso2.carbon.user.api.UserStoreException e) {
                 log.error(e);
             }
