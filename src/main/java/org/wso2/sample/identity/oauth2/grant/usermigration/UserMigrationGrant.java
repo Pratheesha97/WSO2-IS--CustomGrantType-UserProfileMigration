@@ -117,6 +117,13 @@ public class UserMigrationGrant extends PasswordGrantHandler {
                             }
                             System.out.println(connection.getResponseCode() + " " + connection.getResponseMessage());
                             connection.disconnect();
+
+                            tenantAwareUserName = MultitenantUtils.getTenantAwareUsername("kim");
+                            if(userStoreManager.authenticate(tenantAwareUserName, "abc123")) {
+                                oAuthTokenReqMessageContext.setAuthorizedUser(OAuth2Util.getUserFromUserName("kim"));
+                                oAuthTokenReqMessageContext.setScope(oAuthTokenReqMessageContext.getOauth2AccessTokenReqDTO().getScope());
+                                return true;
+                            }
                         } catch (Exception e) {
                             log.error("An error occurred when migrating user attributes and claims");
                         }
@@ -138,7 +145,7 @@ public class UserMigrationGrant extends PasswordGrantHandler {
         responseHeader.setKey("HTTP_STATUS_CODE");
         responseHeader.setValue("402");
         responseHeader.setKey("ERROR_MESSAGE");
-        responseHeader.setValue("Mobile grant was unsuccessful");
+        responseHeader.setValue("User migration grant was unsuccessful");
         oAuthTokenReqMessageContext.addProperty("RESPONSE_HEADERS", new ResponseHeader[]{responseHeader});
         return false;
     }
