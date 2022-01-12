@@ -18,6 +18,7 @@
 
 package org.wso2.sample.identity.oauth2.grant.usermigration;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.context.CarbonContext;
@@ -30,6 +31,8 @@ import org.wso2.carbon.identity.oauth2.util.OAuth2Util;
 import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -87,11 +90,57 @@ public class UserMigrationGrant extends PasswordGrantHandler {
                     oAuthTokenReqMessageContext.setScope(oAuthTokenReqMessageContext.getOauth2AccessTokenReqDTO().getScope());
                     return true;
                 } else {
-                    //Call the custom API and retrieve the response (to be completed).
 
-                    if (true) {
+                    //call the custom API and retrieve the response.
+                    int customApiResCode = 0;
+                    
+                    try {
+                        URL url = new URL("https://localhost:9447/api/identity/auth/v1.1/authenticate"); //custom API
+                        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                        conn.setRequestMethod("POST");
+                        conn.setRequestProperty("Content-Type", "application/json");
+                        conn.setRequestProperty("Authorization",
+                                "Basic " + Base64.getEncoder().encodeToString(
+                                        (usernameParam + ":" + passwordParam).getBytes()
+                                )
+                        );
+                        customApiResCode = conn.getResponseCode();
+                        System.out.println("Output is: " + conn.getResponseCode());
+                    } catch (IOException e) {
+                        log.error("The user could not be authenticated due to an IO exception");
+                    }
 
-                        //If the user exists, migrate user attributes and claims to WSO2 Identity Server.
+                    //If the user exists, fetch user claims and migrate user profile to IS Server.
+                    if (customApiResCode==200) {
+
+                        // Claim[] claimList= userStoreManager.getUserClaimValues(usernameParam,null);
+                        // (In this case, since it's an IS to IS migration, we could easily use a statement similar to above in order to retrieve claims.
+                        // But since our actual scenario is to retrieve data from an external userstore, it's better to call an api and fetch claims.)
+
+                        //fetch user claims
+                        String payload = null;
+                        try {
+                            URL url = new URL("https://localhost:9447/scim2/Me");
+                            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                            conn.setRequestMethod("GET");
+                            conn.setRequestProperty("Accept", "application/scim+json; charset=UTF-8");
+
+                            conn.setRequestProperty("Authorization",
+                                    "Basic " + Base64.getEncoder().encodeToString(
+                                            (usernameParam + ":" + passwordParam).getBytes()
+                                    )
+                            );
+                            InputStream in = conn.getInputStream();
+                            String encoding = conn.getContentEncoding();
+                            encoding = encoding == null ? "UTF-8" : encoding;
+                            payload = IOUtils.toString(in, encoding);
+
+                            System.out.println("Output: " + payload);
+                        } catch (IOException e) {
+                            log.error("An error occurred while fetching user attributes and claims");
+                        }
+
+                        //migrates fetched user claims to WSO2 Identity Server.
                         String apiUrl = "https://localhost:9443/scim2/Users";
                         String adminUsername = "admin";
                         String adminPassword = "admin";
@@ -103,7 +152,11 @@ public class UserMigrationGrant extends PasswordGrantHandler {
                             connection.setRequestMethod("POST");
                             connection.setDoOutput(true);
 
-                            byte[] data = "{ \"schemas\": [], \"name\": { \"givenName\": \"Kim\", \"familyName\": \"Berry\" }, \"userName\": \"kim\", \"password\": \"abc123\", \"emails\": [ { \"type\": \"home\", \"value\": \"kim@gmail.com\", \"primary\": true }, { \"type\": \"work\", \"value\": \"kim@wso2.com\" } ], \"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User\": { \"employeeNumber\": \"1234A\", \"manager\": { \"value\": \"Taylor\" } }}".getBytes(StandardCharsets.UTF_8);
+                            //byte[] data = "{ \"name\": { \"givenName\": \"Kim\", \"familyName\": \"Berry\" }, \"userName\": \"kim\", \"schemas\": [], \"password\": \"abc123\", \"emails\": [\"kim@gmail.com\"], \"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User\": { \"employeeNumber\": \"1234A\", \"manager\": { \"value\": \"Taylor\" } }}".getBytes(StandardCharsets.UTF_8);
+                            //above is the sample data set that were tested (successfully migrated).
+
+                            byte[] data = payload.getBytes(StandardCharsets.UTF_8);
+
                             int length = data.length;
 
                             connection.setFixedLengthStreamingMode(length);
@@ -118,14 +171,14 @@ public class UserMigrationGrant extends PasswordGrantHandler {
                             System.out.println(connection.getResponseCode() + " " + connection.getResponseMessage());
                             connection.disconnect();
 
-                            tenantAwareUserName = MultitenantUtils.getTenantAwareUsername("kim");
-                            if(userStoreManager.authenticate(tenantAwareUserName, "abc123")) {
-                                oAuthTokenReqMessageContext.setAuthorizedUser(OAuth2Util.getUserFromUserName("kim"));
+                            tenantAwareUserName = MultitenantUtils.getTenantAwareUsername(usernameParam);
+                            if(userStoreManager.authenticate(tenantAwareUserName, passwordParam)) {
+                                oAuthTokenReqMessageContext.setAuthorizedUser(OAuth2Util.getUserFromUserName(usernameParam));
                                 oAuthTokenReqMessageContext.setScope(oAuthTokenReqMessageContext.getOauth2AccessTokenReqDTO().getScope());
                                 return true;
                             }
                         } catch (Exception e) {
-                            log.error("An error occurred when migrating user attributes and claims");
+                            log.error("An error occurred while migrating user claims");
                         }
 
                     } else {
