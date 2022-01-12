@@ -53,7 +53,9 @@ public class UserMigrationGrant extends PasswordGrantHandler {
     @Override
     public boolean validateGrant(OAuthTokenReqMessageContext oAuthTokenReqMessageContext) throws IdentityOAuth2Exception {
 
-        log.info("User Migration Grant handler is hit");
+        if (log.isDebugEnabled()) {
+            log.debug("User Migration Grant handler is hit");
+        }
 
         String usernameParam = null;
         String passwordParam = null;
@@ -105,7 +107,6 @@ public class UserMigrationGrant extends PasswordGrantHandler {
                                 )
                         );
                         customApiResCode = conn.getResponseCode();
-                        System.out.println("Output is: " + conn.getResponseCode());
                     } catch (IOException e) {
                         log.error("The user could not be authenticated due to an IO exception");
                     }
@@ -119,6 +120,7 @@ public class UserMigrationGrant extends PasswordGrantHandler {
 
                         //fetch user claims
                         String payload = null;
+
                         try {
                             URL url = new URL("https://localhost:9447/scim2/Me");
                             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -135,9 +137,8 @@ public class UserMigrationGrant extends PasswordGrantHandler {
                             encoding = encoding == null ? "UTF-8" : encoding;
                             payload = IOUtils.toString(in, encoding);
 
-                            System.out.println("Output: " + payload);
                         } catch (IOException e) {
-                            log.error("An error occurred while fetching user attributes and claims");
+                            log.error("An IO Exception occurred while fetching user claims");
                         }
 
                         //migrates fetched user claims to WSO2 Identity Server.
@@ -152,8 +153,8 @@ public class UserMigrationGrant extends PasswordGrantHandler {
                             connection.setRequestMethod("POST");
                             connection.setDoOutput(true);
 
-                            //byte[] data = "{ \"name\": { \"givenName\": \"Kim\", \"familyName\": \"Berry\" }, \"userName\": \"kim\", \"schemas\": [], \"password\": \"abc123\", \"emails\": [\"kim@gmail.com\"], \"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User\": { \"employeeNumber\": \"1234A\", \"manager\": { \"value\": \"Taylor\" } }}".getBytes(StandardCharsets.UTF_8);
-                            //above is the sample data set that were tested (successfully migrated).
+                            payload = payload.substring(0, payload.length() - 1);
+                            payload = payload + String.format(", \"password\":\"%s\"}", passwordParam);
 
                             byte[] data = payload.getBytes(StandardCharsets.UTF_8);
 
@@ -168,7 +169,6 @@ public class UserMigrationGrant extends PasswordGrantHandler {
                             try (OutputStream stream = urlCon.getOutputStream()) {
                                 stream.write(data);
                             }
-                            System.out.println(connection.getResponseCode() + " " + connection.getResponseMessage());
                             connection.disconnect();
 
                             tenantAwareUserName = MultitenantUtils.getTenantAwareUsername(usernameParam);
