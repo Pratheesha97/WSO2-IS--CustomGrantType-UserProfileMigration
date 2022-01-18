@@ -49,6 +49,11 @@ public class UserMigrationGrant extends PasswordGrantHandler {
 
     public static final String USERNAME_PARAM_MIGRATION_GRANT = "username";
     public static final String PASSWORD_PARAM_MIGRATION_GRANT = "password";
+    public static final String CUSTOM_API = "https://localhost:9447/api/identity/auth/v1.1/authenticate";
+    public static final String CUSTOM_USER_CLAIM_URI = "https://localhost:9447/scim2/Me";
+    public static final String LOCAL_USER_CLAIM_URI = "https://localhost:9443/scim2/Users";
+    public static final String ADMIN_USERNAME = "admin";
+    public static final String ADMIN_PASSWORD = "admin";
 
     @Override
     public boolean validateGrant(OAuthTokenReqMessageContext oAuthTokenReqMessageContext) throws IdentityOAuth2Exception {
@@ -97,16 +102,16 @@ public class UserMigrationGrant extends PasswordGrantHandler {
                     int customApiResCode = 0;
                     
                     try {
-                        URL url = new URL("https://localhost:9447/api/identity/auth/v1.1/authenticate"); //custom API
-                        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                        conn.setRequestMethod("POST");
-                        conn.setRequestProperty("Content-Type", "application/json");
-                        conn.setRequestProperty("Authorization",
+                        URL url = new URL(CUSTOM_API);
+                        HttpURLConnection apiConnection = (HttpURLConnection) url.openConnection();
+                        apiConnection.setRequestMethod("POST");
+                        apiConnection.setRequestProperty("Content-Type", "application/json");
+                        apiConnection.setRequestProperty("Authorization",
                                 "Basic " + Base64.getEncoder().encodeToString(
                                         (usernameParam + ":" + passwordParam).getBytes()
                                 )
                         );
-                        customApiResCode = conn.getResponseCode();
+                        customApiResCode = apiConnection.getResponseCode();
                     } catch (IOException e) {
                         log.error("The user could not be authenticated due to an IO exception");
                     }
@@ -122,7 +127,7 @@ public class UserMigrationGrant extends PasswordGrantHandler {
                         String payload = null;
 
                         try {
-                            URL url = new URL("https://localhost:9447/scim2/Me");
+                            URL url = new URL(CUSTOM_USER_CLAIM_URI);
                             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                             conn.setRequestMethod("GET");
                             conn.setRequestProperty("Accept", "application/scim+json; charset=UTF-8");
@@ -142,12 +147,8 @@ public class UserMigrationGrant extends PasswordGrantHandler {
                         }
 
                         //migrates fetched user claims to WSO2 Identity Server.
-                        String apiUrl = "https://localhost:9443/scim2/Users";
-                        String adminUsername = "admin";
-                        String adminPassword = "admin";
-
                         try {
-                            URL url = new URL(apiUrl);
+                            URL url = new URL(LOCAL_USER_CLAIM_URI);
                             URLConnection urlCon = url.openConnection();
                             HttpURLConnection connection = (HttpURLConnection) urlCon;
                             connection.setRequestMethod("POST");
@@ -163,7 +164,7 @@ public class UserMigrationGrant extends PasswordGrantHandler {
                             connection.setFixedLengthStreamingMode(length);
                             connection.setRequestProperty("Accept", "application/scim+json; charset=UTF-8");
                             connection.setRequestProperty("Content-Type", "application/scim+json; charset=UTF-8");
-                            connection.setRequestProperty("Authorization", "Basic " + Base64.getEncoder().encodeToString((adminUsername + ":" + adminPassword).getBytes()));
+                            connection.setRequestProperty("Authorization", "Basic " + Base64.getEncoder().encodeToString((ADMIN_USERNAME + ":" + ADMIN_PASSWORD).getBytes()));
 
                             connection.connect();
                             try (OutputStream stream = urlCon.getOutputStream()) {
