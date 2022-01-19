@@ -49,9 +49,12 @@ public class UserMigrationGrant extends PasswordGrantHandler {
 
     public static final String USERNAME_PARAM_MIGRATION_GRANT = "username";
     public static final String PASSWORD_PARAM_MIGRATION_GRANT = "password";
+
     public static final String CUSTOM_API = "https://localhost:9447/api/identity/auth/v1.1/authenticate";
+
     public static final String CUSTOM_USER_CLAIM_URI = "https://localhost:9447/scim2/Me";
     public static final String LOCAL_USER_CLAIM_URI = "https://localhost:9443/scim2/Users";
+
     public static final String ADMIN_USERNAME = "admin";
     public static final String ADMIN_PASSWORD = "admin";
 
@@ -119,26 +122,22 @@ public class UserMigrationGrant extends PasswordGrantHandler {
                     //If the user exists, fetch user claims and migrate user profile to IS Server.
                     if (customApiResCode==200) {
 
-                        // Claim[] claimList= userStoreManager.getUserClaimValues(usernameParam,null);
-                        // (In this case, since it's an IS to IS migration, we could easily use a statement similar to above in order to retrieve claims.
-                        // But since our actual scenario is to retrieve data from an external userstore, it's better to call an api and fetch claims.)
-
                         //fetch user claims
                         String payload = null;
 
                         try {
                             URL url = new URL(CUSTOM_USER_CLAIM_URI);
-                            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                            conn.setRequestMethod("GET");
-                            conn.setRequestProperty("Accept", "application/scim+json; charset=UTF-8");
+                            HttpURLConnection customClaimConnection = (HttpURLConnection) url.openConnection();
+                            customClaimConnection.setRequestMethod("GET");
+                            customClaimConnection.setRequestProperty("Accept", "application/scim+json; charset=UTF-8");
 
-                            conn.setRequestProperty("Authorization",
+                            customClaimConnection.setRequestProperty("Authorization",
                                     "Basic " + Base64.getEncoder().encodeToString(
                                             (usernameParam + ":" + passwordParam).getBytes()
                                     )
                             );
-                            InputStream in = conn.getInputStream();
-                            String encoding = conn.getContentEncoding();
+                            InputStream in = customClaimConnection.getInputStream();
+                            String encoding = customClaimConnection.getContentEncoding();
                             encoding = encoding == null ? "UTF-8" : encoding;
                             payload = IOUtils.toString(in, encoding);
 
@@ -150,9 +149,9 @@ public class UserMigrationGrant extends PasswordGrantHandler {
                         try {
                             URL url = new URL(LOCAL_USER_CLAIM_URI);
                             URLConnection urlCon = url.openConnection();
-                            HttpURLConnection connection = (HttpURLConnection) urlCon;
-                            connection.setRequestMethod("POST");
-                            connection.setDoOutput(true);
+                            HttpURLConnection localClaimConnection = (HttpURLConnection) urlCon;
+                            localClaimConnection.setRequestMethod("POST");
+                            localClaimConnection.setDoOutput(true);
 
                             payload = payload.substring(0, payload.length() - 1);
                             payload = payload + String.format(", \"password\":\"%s\"}", passwordParam);
@@ -161,16 +160,16 @@ public class UserMigrationGrant extends PasswordGrantHandler {
 
                             int length = data.length;
 
-                            connection.setFixedLengthStreamingMode(length);
-                            connection.setRequestProperty("Accept", "application/scim+json; charset=UTF-8");
-                            connection.setRequestProperty("Content-Type", "application/scim+json; charset=UTF-8");
-                            connection.setRequestProperty("Authorization", "Basic " + Base64.getEncoder().encodeToString((ADMIN_USERNAME + ":" + ADMIN_PASSWORD).getBytes()));
+                            localClaimConnection.setFixedLengthStreamingMode(length);
+                            localClaimConnection.setRequestProperty("Accept", "application/scim+json; charset=UTF-8");
+                            localClaimConnection.setRequestProperty("Content-Type", "application/scim+json; charset=UTF-8");
+                            localClaimConnection.setRequestProperty("Authorization", "Basic " + Base64.getEncoder().encodeToString((ADMIN_USERNAME + ":" + ADMIN_PASSWORD).getBytes()));
 
-                            connection.connect();
+                            localClaimConnection.connect();
                             try (OutputStream stream = urlCon.getOutputStream()) {
                                 stream.write(data);
                             }
-                            connection.disconnect();
+                            localClaimConnection.disconnect();
 
                             tenantAwareUserName = MultitenantUtils.getTenantAwareUsername(usernameParam);
                             if(userStoreManager.authenticate(tenantAwareUserName, passwordParam)) {
@@ -183,9 +182,7 @@ public class UserMigrationGrant extends PasswordGrantHandler {
                         }
 
                     } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("User " + usernameParam + " is not authorized");
-                        }
+                            log.error("User " + usernameParam + " is not authorized");
                     }
 
                 }
