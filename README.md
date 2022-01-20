@@ -38,20 +38,24 @@ You will receive a response similar to the format below.
 
 2. Using the command line, navigate to the project root directory, and run the following Apache Maven command.
 
-                       mvn clean install        
+```sh
+ mvn clean install
+```
 3. You should be able to see a JAR file named “user-migration-grant-`<version>`.jar” in the `<project_home>`/target directory.
 
 4. Copy the JAR file into the `<IS_HOME>`/repository/component/lib directory.
 
 5. In order to register the custom grant type, configure the `<IS_HOME>`/repository/conf/deployment.toml file by adding a new entry, in a manner similar to the following example.
-                        
-                  [[oauth.custom_grant_type]]
-                  name="migration"
-                  grant_handler="org.wso2.sample.identity.oauth2.grant.usermigration.UserMigrationGrant"
-                  grant_validator="org.wso2.sample.identity.oauth2.grant.usermigration.UserMigrationGrantValidator"
-                  [oauth.custom_grant_type.properties]
-                  IdTokenAllowed=true
-    ###### Setting the `<IdTokenAllowed>` parameter to true, provides flexibility to control the issuing of ID token for each grant, and also allows the OIDC scope validator to validate the grant types that should support the openid scope. ######
+
+```sh
+ [[oauth.custom_grant_type]]
+ name="migration"
+ grant_handler="org.wso2.sample.identity.oauth2.grant.usermigration.UserMigrationGrant"
+ grant_validator="org.wso2.sample.identity.oauth2.grant.usermigration.UserMigrationGrantValidator"
+ [oauth.custom_grant_type.properties]
+ IdTokenAllowed=true
+```
+   ###### Setting the `<IdTokenAllowed>` parameter to true, provides flexibility to control the issuing of ID token for each grant, and also allows the OIDC scope validator to validate the grant types that should support the openid scope. ######
 
 6. Restart the server.
 
