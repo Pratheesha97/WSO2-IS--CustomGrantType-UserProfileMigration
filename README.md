@@ -20,7 +20,7 @@ The diagram below illustrates the user migration grant flow.
 
 ![image](https://user-images.githubusercontent.com/55917205/150318207-0b25ad67-b2b4-4ce6-bf3c-51a491884a57.png)
 
-The cURL commands below can be used to try this grant type.
+The cURL command below can be used to try this grant type.
 
 ```sh
 curl -u <client id>:<client secret> -k -d "grant_type=migration&username=<username>&password=<password>" -H "Content-Type:application/x-www-form-urlencoded" https://localhost:9443/oauth2/token
