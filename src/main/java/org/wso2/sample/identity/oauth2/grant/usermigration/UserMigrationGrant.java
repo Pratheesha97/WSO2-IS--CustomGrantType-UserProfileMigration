@@ -103,7 +103,7 @@ public class UserMigrationGrant extends PasswordGrantHandler {
 
                     //call the custom API and retrieve the response.
                     int customApiResCode = 0;
-                    
+
                     try {
                         URL url = new URL(CUSTOM_API);
                         HttpURLConnection apiConnection = (HttpURLConnection) url.openConnection();
@@ -182,7 +182,7 @@ public class UserMigrationGrant extends PasswordGrantHandler {
                         }
 
                     } else {
-                            log.error("User " + usernameParam + " is not authorized");
+                        log.error("User " + usernameParam + " is not authorized");
                     }
 
                 }

@@ -7,6 +7,7 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="custom-grant" />
+        <module name="user-migration-grant" />
         <module name="custom-grant-project" />
       </profile>
     </annotationProcessing>

@@ -1,2 +1,2 @@
-/home/samadhi/Documents/custom-grant-project/src/main/java/org/wso2/sample/identity/oauth2/grant/usermigration/UserMigrationGrantValidator.java
-/home/samadhi/Documents/custom-grant-project/src/main/java/org/wso2/sample/identity/oauth2/grant/usermigration/UserMigrationGrant.java
+/home/samadhi/Documents/user-migration-grant/src/main/java/org/wso2/sample/identity/oauth2/grant/usermigration/UserMigrationGrantValidator.java
+/home/samadhi/Documents/user-migration-grant/src/main/java/org/wso2/sample/identity/oauth2/grant/usermigration/UserMigrationGrant.java

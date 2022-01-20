@@ -20,53 +20,37 @@
 
     <groupId>org.wso2.is</groupId>
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>custom-grant</artifactId>
+    <artifactId>user-migration-grant</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
-    <name>OAuth 2.0 Custom Grant</name>
+    <name>OAuth 2.0 User Migration Grant</name>
     <url>http://maven.apache.org</url>
 
     <dependencies>
         <dependency>
             <groupId>org.apache.oltu.oauth2</groupId>
             <artifactId>org.apache.oltu.oauth2.client</artifactId>
-            <version>1.0.0</version>
+            <version>${oauth2.client.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.wso2.carbon.identity</groupId>
+            <groupId>org.wso2.carbon.identity.inbound.auth.oauth2</groupId>
             <artifactId>org.wso2.carbon.identity.oauth</artifactId>
-            <version>5.0.7</version>
+            <version>${identity.inbound.auth.oauth.version}</version>
         </dependency>
         <dependency>
             <groupId>commons-logging</groupId>
             <artifactId>commons-logging</artifactId>
-            <version>1.1.1</version>
+            <version>1.2</version>
         </dependency>
         <dependency>
             <groupId>org.wso2.carbon</groupId>
             <artifactId>org.wso2.carbon.user.core</artifactId>
-            <version>4.4.3</version>
-        </dependency>
-        <dependency>
-            <groupId>org.wso2.carbon.identity</groupId>
-            <artifactId>org.wso2.carbon.identity.sso.saml.stub</artifactId>
-            <version>5.7.10</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.wso2.carbon.identity</groupId>
-            <artifactId>org.wso2.carbon.identity.application.authentication.framework</artifactId>
-            <version>5.0.7</version>
-        </dependency>
-        <dependency>
-            <groupId>javax</groupId>
-            <artifactId>javaee-web-api</artifactId>
-            <version>8.0.1</version>
+            <version>${carbon.kernel.version}</version>
         </dependency>
         <dependency>
             <groupId>org.wso2.carbon</groupId>
             <artifactId>org.wso2.carbon.utils</artifactId>
-            <version>4.7.0-m7</version>
+            <version>${carbon.kernel.version}</version>
         </dependency>
     </dependencies>
 
@@ -90,11 +74,23 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>9</source>
-                    <target>9</target>
+                    <encoding>UTF-8</encoding>
+                    <source>1.8</source>
+                    <target>1.8</target>
                 </configuration>
             </plugin>
         </plugins>
     </build>
+
+    <properties>
+        <!-- Sample dependency Versions -->
+        <oauth2.client.version>1.0.0</oauth2.client.version>
+
+        <!-- Identity Inbound Versions   -->
+        <identity.inbound.auth.oauth.version>6.4.111</identity.inbound.auth.oauth.version>
+
+        <!-- Carbon Kernel -->
+        <carbon.kernel.version>4.6.1</carbon.kernel.version>
+    </properties>
 
 </project>
